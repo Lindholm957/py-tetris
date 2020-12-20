@@ -1,12 +1,8 @@
 import ast
 import os
 import random
-import tkinter
-
 import pygame.freetype
 import pygame
-from tkinter import *  # not advisable to import everything with *
-from tkinter import filedialog
 """
 10 x 20 grid
 play_height = 2 * play_width
@@ -22,7 +18,10 @@ tetriminos:
 """
 
 pygame.font.init()
-
+screen = pygame.display.set_mode((640, 480))
+COLOR_INACTIVE = pygame.Color('lightskyblue3')
+COLOR_ACTIVE = pygame.Color('dodgerblue2')
+FONT = pygame.font.Font(None, 32)
 # global variables
 
 col = 10  # 10 columns
@@ -163,6 +162,47 @@ class Piece(object):
         self.color = shape_colors[shapes.index(shape)]  # choose color from the shape_color list
         self.rotation = 0  # chooses the rotation according to index
 
+class InputBox:
+
+    def __init__(self, x, y, w, h, text=''):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.color = COLOR_INACTIVE
+        self.text = text
+        self.txt_surface = FONT.render(text, True, self.color)
+        self.active = False
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # If the user clicked on the input_box rect.
+            if self.rect.collidepoint(event.pos):
+                # Toggle the active variable.
+                self.active = not self.active
+            else:
+                self.active = False
+            # Change the current color of the input box.
+            self.color = COLOR_ACTIVE if self.active else COLOR_INACTIVE
+        if event.type == pygame.KEYDOWN:
+            if self.active:
+                if event.key == pygame.K_RETURN:
+                    print(self.text)
+                    self.text = ''
+                elif event.key == pygame.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    self.text += event.unicode
+                # Re-render the text.
+                self.txt_surface = FONT.render(self.text, True, self.color)
+
+    def update(self):
+        # Resize the box if the text is too long.
+        width = max(200, self.txt_surface.get_width()+10)
+        self.rect.w = width
+
+    def draw(self, screen):
+        # Blit the text.
+        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
+        # Blit the rect.
+        pygame.draw.rect(screen, self.color, self.rect, 2)
 
 # initialise the grid
 def create_grid(locked_pos={}):
@@ -376,13 +416,14 @@ def get_max_score():
     return score
 
 
-def main(window, new_game):
+def main(window, new_game, choosen_save):
     locked_positions = {}
     save = []
-    with open(last_save, 'r') as file:
+    if not new_game:
+        choosen_save = 'saves/' + choosen_save
+    with open(choosen_save, 'r') as file:
         for line in file:
             save.append(line)
-
     if not new_game:
         locked_positions = eval(save[0])
         create_grid(locked_positions)
@@ -439,7 +480,6 @@ def main(window, new_game):
                 run = False
                 pygame.display.quit()
                 quit()
-
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     current_piece.x -= 1  # move x position left
@@ -518,11 +558,57 @@ def main(window, new_game):
     pygame.time.delay(2000)  # wait for 2 seconds
     pygame.quit()
 
-def open_save():
-    file_name = filedialog.askopenfilename(filetypes=(("TXT files", "*.txt"),
-                                                    ("HTML files", "*.html; *.htm"),
-                                                    ("All files", "*.*")))
-    return file_name
+def save_win():
+    pygame.init()
+    saveWin = pygame.display.set_mode((s_width, s_height))
+    clock = pygame.time.Clock()
+
+    font = pygame.font.SysFont(None, 56)
+    text = ""
+    input_active = True
+    exc = False
+
+    run = True
+    while run:
+        clock.tick(60)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            elif event.type == pygame.KEYDOWN and input_active:
+                if event.key == pygame.K_RETURN:
+                    try:
+                        file = open('saves/'+ str(text))
+                    except IOError as e:
+                        exc = True
+                    else:
+                        with file:
+                            return text
+                elif event.key == pygame.K_ESCAPE:
+                    main_menu(win)
+                elif event.key == pygame.K_BACKSPACE:
+                    text = text[:-1]
+                else:
+                    text += event.unicode
+
+            if exc:
+                saveWin.fill((0, 0, 0))
+                exception, rect = GAME_FONT.render('Incorrect name', (255, 255, 255))
+                save_name_file, rect = GAME_FONT.render('Enter  save  name  file', (255, 255, 255))
+                saveWin.blit(save_name_file, (150, 250))
+                saveWin.blit(exception, (230, 500))
+                text_surf = font.render(text, True, (255, 255, 255))
+                saveWin.blit(text_surf, text_surf.get_rect(center=saveWin.get_rect().center))
+                pygame.display.update()
+            else:
+                saveWin.fill((0, 0, 0))
+                save_name_file, rect = GAME_FONT.render('Enter  save  name  file', (255, 255, 255))
+                saveWin.blit(save_name_file, (150, 250))
+                text_surf = font.render(text, True, (255, 255, 255))
+                saveWin.blit(text_surf, text_surf.get_rect(center=saveWin.get_rect().center))
+                pygame.display.update()
+    pygame.quit()
+    exit()
+
 def main_menu(window):
     run = True
     while run:
@@ -538,9 +624,10 @@ def main_menu(window):
                 run = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    main(window, False)
+                    file_name = save_win()
+                    main(window, False, file_name)
                 elif event.key == pygame.K_RETURN:
-                    main(window, True)
+                    main(window, True, last_save)
     pygame.quit()
 
 
