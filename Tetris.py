@@ -1,8 +1,12 @@
 import ast
+import os
 import random
-import pygame
-import pygame.freetype
+import tkinter
 
+import pygame.freetype
+import pygame
+from tkinter import *  # not advisable to import everything with *
+from tkinter import filedialog
 """
 10 x 20 grid
 play_height = 2 * play_width
@@ -33,10 +37,10 @@ top_left_x = (s_width - play_width) // 2
 top_left_y = s_height - play_height - 50
 
 pygame.init()
-filepath = '/Users/lindholm/PycharmProjects/py-tetris/highscore.txt'
-last_save = '/Users/lindholm/PycharmProjects/py-tetris/last_save.txt'
-fontpath = '/Users/lindholm/PycharmProjects/py-tetris/arcade.TTF'
-fontpath_mario = '/Users/lindholm/PycharmProjects/py-tetris/mario.TTF'
+filepath = 'highscore.txt'
+last_save = 'saves/last_save.txt'
+fontpath = 'arcade.TTF'
+fontpath_mario = 'mario.TTF'
 GAME_FONT = pygame.freetype.Font("arcade.TTF", 48)
 
 # shapes formats
@@ -458,6 +462,28 @@ def main(window, new_game):
                     current_piece.rotation = current_piece.rotation + 1 % len(current_piece.shape)
                     if not valid_space(current_piece, grid):
                         current_piece.rotation = current_piece.rotation - 1 % len(current_piece.shape)
+                elif event.key == pygame.K_s:
+                    # make new save
+                    lines = [str(locked_positions), str(change_piece),
+                             str(current_piece.x) + '|' + str(current_piece.y) + '|' + str(current_piece.shape),
+                             str('5' + '|' + '0' + '|' + str(next_piece.shape)), str(fall_time), str(fall_speed),
+                             str(level_time), str(score)]
+                    if os.path.isfile(last_save):
+                        expand = 1
+                        while True:
+                            expand += 1
+                            new_file_name = last_save.split(".txt")[0] + str(expand) + ".txt"
+                            if os.path.isfile(new_file_name):
+                                continue
+                            else:
+                                with open(new_file_name, 'w') as file:
+                                    for line in lines:
+                                        file.write(line + '\n')
+                                break
+                    else:
+                        with open(last_save, 'w') as file:
+                            for line in lines:
+                                file.write(line + '\n')
 
         piece_pos = convert_shape_format(current_piece)
 
@@ -486,27 +512,25 @@ def main(window, new_game):
 
         if check_lost(locked_positions):
             run = False
-        #Write changes in save_file
-        lines = [str(locked_positions), str(change_piece), str(current_piece.x) + '|' + str(current_piece.y) + '|' + str(current_piece.shape),
-                 str('5' + '|' + '0' + '|' + str(next_piece.shape)), str(fall_time), str(fall_speed), str(level_time), str(score)]
-        with open(last_save, 'w') as file:
-            for line in lines:
-                file.write(line + '\n')
 
     draw_text_middle('You Lost', 40, (255, 255, 255), window)
     pygame.display.update()
     pygame.time.delay(2000)  # wait for 2 seconds
     pygame.quit()
 
-
+def open_save():
+    file_name = filedialog.askopenfilename(filetypes=(("TXT files", "*.txt"),
+                                                    ("HTML files", "*.html; *.htm"),
+                                                    ("All files", "*.*")))
+    return file_name
 def main_menu(window):
     run = True
     while run:
         window.fill((0, 0, 0))
         new_game_text, rect = GAME_FONT.render('Press  enter  to  begin', (255, 255, 255))
-        continue_text, rect = GAME_FONT.render('Press  Space  to  continue', (255, 255, 255))
+        continue_text, rect = GAME_FONT.render('Press  Space  to  load  save', (255, 255, 255))
         window.blit(new_game_text, (150, 250))
-        window.blit(continue_text, (110, 500))
+        window.blit(continue_text, (105, 500))
         pygame.display.update()
 
         for event in pygame.event.get():
@@ -517,7 +541,6 @@ def main_menu(window):
                     main(window, False)
                 elif event.key == pygame.K_RETURN:
                     main(window, True)
-
     pygame.quit()
 
 
